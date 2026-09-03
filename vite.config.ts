@@ -100,8 +100,49 @@ function cliBridgePlugin(): Plugin {
         });
       });
 
+      server.middlewares.use("/api/nvidia", (req, res) => {
+        if (req.method !== "POST") return json(res, { ok: false, error: "POST only" }, 405);
+        readBody(req).then(async (raw) => {
+          try {
+            const body = JSON.parse(raw || "{}");
+            const apiKey = body.key || process.env.VITE_NVIDIA_API_KEY;
+            if (!apiKey) return json(res, { ok: false, error: "No NVIDIA API key provided" }, 400);
+
+            const { key: _key, ...payload } = body;
+
+            const https = await import("node:https");
+            const postData = JSON.stringify(payload);
+            const proxyReq = https.request(
+              "https://integrate.api.nvidia.com/v1/chat/completions",
+              {
+                method: "POST",
+                headers: {
+                  "Content-Type": "application/json",
+                  Authorization: `Bearer ${apiKey}`,
+                  "Content-Length": Buffer.byteLength(postData),
+                },
+              },
+              (proxyRes) => {
+                let data = "";
+                proxyRes.on("data", (chunk: Buffer) => (data += chunk));
+                proxyRes.on("end", () => {
+                  res.statusCode = proxyRes.statusCode ?? 500;
+                  res.setHeader("Content-Type", "application/json");
+                  res.end(data);
+                });
+              },
+            );
+            proxyReq.on("error", (e) => json(res, { error: String(e) }, 502));
+            proxyReq.write(postData);
+            proxyReq.end();
+          } catch (e) {
+            json(res, { error: String(e) }, 500);
+          }
+        });
+      });
+
       // eslint-disable-next-line no-console
-      console.log("[prebuild] CLI bridge ready: opencode + claude");
+      console.log("[prebuild] CLI bridge ready: opencode + claude + nvidia-proxy");
     },
   };
 }

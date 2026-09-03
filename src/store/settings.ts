@@ -6,6 +6,7 @@ export type ProviderId =
   | "gemini"
   | "openai"
   | "anthropic"
+  | "nvidia"
   | "claude-code"
   | "opencode"
   | "local";
@@ -24,12 +25,13 @@ export const PROVIDER_META: Record<ProviderId, ProviderMeta> = {
   gemini: { label: "Google Gemini", short: "Gemini", kind: "cloud", vision: true, defaultModel: "gemini-2.5-flash", hint: "Get a key at aistudio.google.com/apikey" },
   openai: { label: "OpenAI", short: "OpenAI", kind: "cloud", vision: true, defaultModel: "gpt-4o-mini", hint: "Get a key at platform.openai.com/api-keys" },
   anthropic: { label: "Anthropic (Claude)", short: "Claude API", kind: "cloud", vision: true, defaultModel: "claude-sonnet-4-5", hint: "Get a key at console.anthropic.com" },
+  nvidia: { label: "NVIDIA NIM", short: "NVIDIA", kind: "cloud", vision: true, defaultModel: "meta/llama-3.2-90b-vision-instruct", hint: "Get a key at build.nvidia.com" },
   "claude-code": { label: "Claude Code · local CLI", short: "Claude Code", kind: "cli", vision: false, defaultModel: "", hint: "Runs the claude CLI locally via the dev-server bridge" },
   opencode: { label: "OpenCode · local CLI", short: "OpenCode", kind: "cli", vision: false, defaultModel: "", hint: "Runs the opencode CLI locally via the dev-server bridge" },
   local: { label: "Built-in rules engine", short: "Local", kind: "local", vision: false, defaultModel: "", hint: "Offline keyword presets — always available" },
 };
 
-export type CloudKeyId = "gemini" | "openai" | "anthropic";
+export type CloudKeyId = "gemini" | "openai" | "anthropic" | "nvidia";
 export type ModelableId = Exclude<ProviderId, "auto" | "local">;
 
 interface SettingsState {
