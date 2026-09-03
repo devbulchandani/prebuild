@@ -14,9 +14,11 @@ function providerReady(p: Exclude<ProviderId, "auto">): boolean {
     case "gemini":
       return Boolean(s.keys.gemini || envGeminiKey());
     case "openai":
-      return Boolean(s.keys.openai);
+      return Boolean(s.keys.openai || import.meta.env.VITE_OPENAI_API_KEY);
     case "anthropic":
-      return Boolean(s.keys.anthropic);
+      return Boolean(s.keys.anthropic || import.meta.env.VITE_ANTHROPIC_API_KEY);
+    case "nvidia":
+      return Boolean(s.keys.nvidia || import.meta.env.VITE_NVIDIA_API_KEY);
     case "claude-code":
       return Boolean(s.cliAvailable.claude);
     case "opencode":
@@ -36,6 +38,7 @@ export function resolveActive(): { provider: Exclude<ProviderId, "auto">; ready:
     "gemini",
     "openai",
     "anthropic",
+    "nvidia",
     "claude-code",
     "opencode",
     "local",
@@ -50,6 +53,7 @@ function visionOrder(): Exclude<ProviderId, "auto" | "local">[] {
     "gemini",
     "openai",
     "anthropic",
+    "nvidia",
     "claude-code",
     "opencode",
   ];
@@ -164,7 +168,7 @@ async function callGemini(prompt: string, image?: LLMImage): Promise<string> {
 
 async function callOpenAI(prompt: string, image?: LLMImage): Promise<string> {
   const s = useSettings.getState();
-  const key = s.keys.openai;
+  const key = s.keys.openai || import.meta.env.VITE_OPENAI_API_KEY;
   if (!key) throw new Error("NO_KEY");
   const model = s.models.openai || PROVIDER_META.openai.defaultModel;
 
@@ -196,7 +200,7 @@ async function callOpenAI(prompt: string, image?: LLMImage): Promise<string> {
 
 async function callAnthropic(prompt: string, image?: LLMImage): Promise<string> {
   const s = useSettings.getState();
-  const key = s.keys.anthropic;
+  const key = s.keys.anthropic || import.meta.env.VITE_ANTHROPIC_API_KEY;
   if (!key) throw new Error("NO_KEY");
   const model = s.models.anthropic || PROVIDER_META.anthropic.defaultModel;
 
@@ -232,6 +236,43 @@ async function callAnthropic(prompt: string, image?: LLMImage): Promise<string> 
     const text: string = (data.content ?? [])
       .map((b: { text?: string }) => b.text ?? "")
       .join("");
+    if (!text) throw new Error("EMPTY_RESPONSE");
+    return text;
+  } finally {
+    done();
+  }
+}
+
+async function callNvidia(prompt: string, image?: LLMImage): Promise<string> {
+  const s = useSettings.getState();
+  const key = s.keys.nvidia || import.meta.env.VITE_NVIDIA_API_KEY;
+  if (!key) throw new Error("NO_KEY");
+  const model = s.models.nvidia || PROVIDER_META.nvidia.defaultModel;
+
+  const content: Record<string, unknown>[] = [{ type: "text", text: prompt }];
+  if (image) content.push({ type: "image_url", image_url: { url: image } });
+
+  const { signal, done } = withTimeout(TIMEOUT_MS);
+  try {
+    // NVIDIA's API does not support CORS, so we proxy through the dev server.
+    const res = await fetch("/api/nvidia", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        key,
+        model,
+        temperature: 0.35,
+        max_tokens: 4096,
+        messages: [{ role: "user", content }],
+      }),
+      signal,
+    });
+    if (!res.ok) {
+      const errData = await res.json().catch(() => null);
+      throw new Error(errData?.error || `NVIDIA_${res.status}`);
+    }
+    const data = await res.json();
+    const text = data.choices?.[0]?.message?.content;
     if (!text) throw new Error("EMPTY_RESPONSE");
     return text;
   } finally {
@@ -296,6 +337,8 @@ export async function llmJSON(prompt: string, image?: LLMImage): Promise<unknown
             return extractJSON(await callOpenAI(effectivePrompt, image));
           case "anthropic":
             return extractJSON(await callAnthropic(effectivePrompt, image));
+          case "nvidia":
+            return extractJSON(await callNvidia(effectivePrompt, image));
           case "claude-code":
             return extractJSON(await callCli("claude", effectivePrompt));
           case "opencode":
@@ -317,6 +360,8 @@ export async function llmJSON(prompt: string, image?: LLMImage): Promise<unknown
       return extractJSON(await callOpenAI(prompt));
     case "anthropic":
       return extractJSON(await callAnthropic(prompt));
+    case "nvidia":
+      return extractJSON(await callNvidia(prompt));
     case "claude-code":
       return extractJSON(await callCli("claude", prompt));
     case "opencode":

@@ -35,8 +35,9 @@ function EngineRow({
 
   let ready = false;
   if (id === "gemini") ready = Boolean(keys.gemini || import.meta.env.VITE_GEMINI_API_KEY);
-  else if (id === "openai") ready = Boolean(keys.openai);
-  else if (id === "anthropic") ready = Boolean(keys.anthropic);
+  else if (id === "openai") ready = Boolean(keys.openai || import.meta.env.VITE_OPENAI_API_KEY);
+  else if (id === "anthropic") ready = Boolean(keys.anthropic || import.meta.env.VITE_ANTHROPIC_API_KEY);
+  else if (id === "nvidia") ready = Boolean(keys.nvidia || import.meta.env.VITE_NVIDIA_API_KEY);
   else if (id === "claude-code") ready = Boolean(cli.claude);
   else if (id === "opencode") ready = Boolean(cli.opencode);
   else ready = true;
@@ -64,7 +65,7 @@ function EngineRow({
         {!meta.vision && meta.kind !== "local" && " · no image input (plan import unavailable)"}
       </p>
 
-      {(id === "gemini" || id === "openai" || id === "anthropic") && (
+      {(id === "gemini" || id === "openai" || id === "anthropic" || id === "nvidia") && (
         <div className="ml-[26px] grid grid-cols-[1fr_130px] gap-1.5">
           <input
             type="password"
@@ -154,6 +155,7 @@ export function SettingsModal() {
           <EngineRow id="gemini" active={provider === "gemini"} onSelect={() => setProvider("gemini")} />
           <EngineRow id="openai" active={provider === "openai"} onSelect={() => setProvider("openai")} />
           <EngineRow id="anthropic" active={provider === "anthropic"} onSelect={() => setProvider("anthropic")} />
+          <EngineRow id="nvidia" active={provider === "nvidia"} onSelect={() => setProvider("nvidia")} />
           <EngineRow id="claude-code" active={provider === "claude-code"} onSelect={() => setProvider("claude-code")} />
           <EngineRow id="opencode" active={provider === "opencode"} onSelect={() => setProvider("opencode")} />
           <EngineRow id="local" active={provider === "local"} onSelect={() => setProvider("local")} />
